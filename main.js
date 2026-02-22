@@ -17,6 +17,13 @@ async function loadLocationData() {
 
 loadLocationData();
 
+// rss feeds
+const rssFeeds = [
+    'https://rss.app/feeds/mKpvOxHGzgNpP5Ib.xml', // Google News, World News
+    'https://rss.app/feeds/xsP4Lat7ZnqG58Vp.xml', // Google News, US News
+    'https://rss.app/feeds/dcFCoFLUF4HsslSJ.xml', // Google News, Science
+];
+
 // Camera and Renderer Setup
 renderer.setSize(window.innerWidth, window.innerHeight);
 camera.position.z = 3;
@@ -239,28 +246,40 @@ function clearMarkers() {
 // 11. Fetch and Update RSS Feed
 async function updateRSSFeed() {
     clearMarkers(); // Clear existing markers before adding new ones
-    const rssUrl = 'https://rss.app/feeds/mKpvOxHGzgNpP5Ib.xml'; // Google News, World News
-    const proxyUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}`;
+    let allItems = [];
+
+    // Map each URL to a fetch promise
+    const fetchPromises = rssFeeds.map(url => {
+        const proxyUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(url)}`;
+        return fetch(proxyUrl).then(res => res.json());
+    });
 
     try {
-        const response = await fetch(proxyUrl);
-        const data = await response.json();
+        const results = await Promise.all(fetchPromises);
         
-        if (data.status === 'ok') {
-            // Display the headlines in the footer
-            const headlines = data.items.map(item => `*** ${item.title} ***`).join('      ');
-            document.getElementById('rss-content').textContent = headlines;
+        results.forEach(data => {
+            if (data.status === 'ok') {
+                allItems = allItems.concat(data.items);
+            }
+        });
+        
+        // 1. Update the Scrolling Ticker
+        const headlines = allItems.map(item => `*** ${item.title} ***`).join('      ');
+        document.getElementById('rss-content').textContent = headlines;
 
-            // Add markers for headlines
-            data.items.forEach(item => {
-              for (const place in locationData) {
+        // 2. Add Markers to the Globe
+        const seenTitles = new Set(); // To avoid duplicate markers for the same news story
+        allItems.forEach(item => {
+          if (seenTitles.has(item.title)) return; // Skip if we've already added a marker for this title
+          seenTitles.add(item.title);
+            for (const place in locationData) {
                 if (item.title.includes(place)) {
                   const coords = locationData[place];
                   addMarker(coords.lat, coords.lon, item.title, item.link);
+                  break; // Stop checking other places once we find a match
                 }
-              }
-            });
-        }
+            }
+        });
     } catch (error) {
         console.error('Error fetching RSS:', error);
         document.getElementById('rss-content').textContent = "Unable to load news feed.";
