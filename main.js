@@ -16,45 +16,66 @@ const loader = new THREE.TextureLoader();
 const dayTexture = loader.load('/earth_color.jpg');
 const nightTexture = loader.load('/earth_night.jpg');
 const normalMap = loader.load('/earth_normal.jpg');
+const specMap = loader.load('/earth_spec.jpg');
 const geometry = new THREE.SphereGeometry(1, 64, 64);
 const earthMaterial = new THREE.ShaderMaterial({
   uniforms: {
     sunDirection: { value: new THREE.Vector3() },
     dayTexture: { value: dayTexture },
     nightTexture: { value: nightTexture },
-    normalMap: { value: normalMap }
+    normalMap: { value: normalMap },
+    specularMap: { value: specMap }
   },
   vertexShader: `
     varying vec2 vUv;
     varying vec3 vNormal;
+    varying vec3 vViewPosition;
+
     void main() {
       vUv = uv;
       vNormal = normalize(vec3(modelMatrix * vec4(normal, 0.0)));
+      
+      // Calculate position relative to the camera for reflections
+      vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+      vViewPosition = cameraPosition - worldPosition.xyz;
+      
       gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
     }
   `,
   fragmentShader: `
     uniform sampler2D dayTexture;
     uniform sampler2D nightTexture;
+    uniform sampler2D specularMap;
     uniform vec3 sunDirection;
+    
     varying vec2 vUv;
     varying vec3 vNormal;
+    varying vec3 vViewPosition;
 
     void main() {
       // Normalize the sun direction
       vec3 L = normalize(sunDirection);
-      
-      // Calculate light intensity
-      float intensity = dot(vNormal, L);
+      vec3 V = normalize(vViewPosition);
+      vec3 N = normalize(vNormal);
 
+      // 1. Base Textures
       vec4 dayColor = texture2D(dayTexture, vUv);
       vec4 nightColor = texture2D(nightTexture, vUv);
+      float specValue = texture2D(specularMap, vUv).r; // Read the specular map (r channel)
 
-      // Tighten the transition: 
-      // Anything below 0.0 is night, anything above is day.
+      // 2. Diffuse Lighting (Day/Night transition)
+      float intensity = dot(N, L);
       float mixAmount = smoothstep(-0.05, 0.05, intensity);
-      
-      gl_FragColor = mix(nightColor, dayColor, mixAmount);
+
+      // 3. Specular Reflection (The "Glint" on the water)
+      // We only want reflections on the "day" side where the specMap is bright (water)
+      vec3 R = reflect(-L, N);
+      float specStrength = pow(max(dot(R, V), 0.0), 32.0) * specValue * mixAmount;
+      vec3 specularReflection = vec3(1.0) * specStrength;
+
+      // 4. Combine everything
+      vec3 baseColor = mix(nightColor.rgb, dayColor.rgb, mixAmount);
+      gl_FragColor = vec4(baseColor + specularReflection, 1.0);
     }
   `
 });
