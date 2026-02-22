@@ -16,7 +16,7 @@ const loader = new THREE.TextureLoader();
 const geometry = new THREE.SphereGeometry(1, 64, 64); // High detail segments
 const material = new THREE.MeshStandardMaterial({
   map: loader.load('/earth_color.jpg'),      // Path to your image in /public
-  bumpMap: loader.load('/earth_bump.jpg'),    // Adds texture depth
+  bumpMap: loader.load('/earth_bump.tif'),    // Adds texture depth
   bumpScale: 0.05,
 });
 
@@ -34,21 +34,10 @@ scene.add(sunLight);
 // 4. Interaction (OrbitControls)
 const controls = new OrbitControls(camera, renderer.domElement);
 
-// 5. Add Clouds (Extra Layer)
-const cloudGeometry = new THREE.SphereGeometry(1.02, 64, 64); // Slightly larger
-const cloudMaterial = new THREE.MeshStandardMaterial({
-  map: loader.load('/earth_clouds.jpg'),
-  transparent: true,
-  opacity: 0.4
-});
-const clouds = new THREE.Mesh(cloudGeometry, cloudMaterial);
-scene.add(clouds);
-
-// 6. Animation Loop
+// 5. Animation Loop
 function animate() {
   requestAnimationFrame(animate);
   earth.rotation.y += 0.002; // Slow spin
-  clouds.rotation.y += 0.003; // Clouds move faster than the ground
   controls.update();
   renderer.render(scene, camera);
 }
