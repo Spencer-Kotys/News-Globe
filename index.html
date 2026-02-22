@@ -6,10 +6,24 @@
     <style>
         body { margin: 0; overflow: hidden; } /* Remove scrollbars */
         canvas { display: block; }
+        #time-display {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-family: "Georgia", serif;
+            font-size: 1.5rem;
+            background: rgba(0, 0, 0, 0.5); /* Semi-transparent background for readability */
+            padding: 10px 15px;
+            border-radius: 5px;
+            pointer-events: none; /* Allows you to click "through" the text to rotate the Earth */
+            z-index: 100;
+        }
     </style>
 </head>
 <body>
     <canvas id="bg"></canvas>
+    <div id="time-display"></div>
     <script type="module" src="/main.js"></script>
 </body>
 </html>

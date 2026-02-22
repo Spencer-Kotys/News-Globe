@@ -130,12 +130,29 @@ scene.add(sunLight);
 // 4. Interaction (OrbitControls)
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.autoRotate = true; // Automatically rotate the scene
-controls.autoRotateSpeed = 0.5; // Adjust rotation speed
+controls.autoRotateSpeed = 0.2; // Adjust rotation speed
 
-// 5. Animation Loop
+// 5. Time Display
+const timeElement = document.getElementById('time-display');
+function updateClock() {
+    const now = new Date();
+    
+    // Format the date
+    const dateString = now.getUTCDate() + " " + now.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' }) + " " + now.getUTCFullYear();
+    
+    // Format the UTC 24-hour time
+    const hours = String(now.getUTCHours()).padStart(2, '0');
+    const minutes = String(now.getUTCMinutes()).padStart(2, '0');
+    const seconds = String(now.getUTCSeconds()).padStart(2, '0');
+    
+    timeElement.textContent = `${hours}:${minutes}:${seconds} ${dateString} UTC`;
+}
+
+// 6. Animation Loop
 function animate() {
   requestAnimationFrame(animate);
   updateSunPosition(sunLight); // Update sun position every frame
+  updateClock(); // Update the clock every frame
   earthMaterial.uniforms.sunDirection.value.copy(sunLight.position).normalize();
   controls.update();
   renderer.render(scene, camera);
