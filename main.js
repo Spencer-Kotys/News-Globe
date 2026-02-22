@@ -13,18 +13,54 @@ camera.position.z = 3;
 const loader = new THREE.TextureLoader();
 
 // 2. The Earth Mesh
-const geometry = new THREE.SphereGeometry(1, 64, 64); // High detail segments
-const material = new THREE.MeshPhongMaterial({
-  map: loader.load('/earth_color.jpg'),      // Base color of Earth
-  normalMap: loader.load('/earth_normal.jpg'),    // Adds texture depth
-  normalScale: new THREE.Vector2(0.5, 0.5), // Adjust normal map intensity
-  specularMap: loader.load('/earth_spec.jpg'),  // Controls shininess
-  specular: new THREE.Color('grey'),
-  shininess: 50, // Controls reflectivness
+const dayTexture = loader.load('/earth_color.jpg');
+const nightTexture = loader.load('/earth_night.jpg');
+const normalMap = loader.load('/earth_normal.jpg');
+const geometry = new THREE.SphereGeometry(1, 64, 64);
+const earthMaterial = new THREE.ShaderMaterial({
+  uniforms: {
+    sunDirection: { value: new THREE.Vector3() },
+    dayTexture: { value: dayTexture },
+    nightTexture: { value: nightTexture },
+    normalMap: { value: normalMap }
+  },
+  vertexShader: `
+    varying vec2 vUv;
+    varying vec3 vNormal;
+    void main() {
+      vUv = uv;
+      vNormal = normalize(vec3(modelMatrix * vec4(normal, 0.0)));
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform sampler2D dayTexture;
+    uniform sampler2D nightTexture;
+    uniform vec3 sunDirection;
+    varying vec2 vUv;
+    varying vec3 vNormal;
+
+    void main() {
+      // Normalize the sun direction
+      vec3 L = normalize(sunDirection);
+      
+      // Calculate light intensity
+      float intensity = dot(vNormal, L);
+
+      vec4 dayColor = texture2D(dayTexture, vUv);
+      vec4 nightColor = texture2D(nightTexture, vUv);
+
+      // Tighten the transition: 
+      // Anything below 0.0 is night, anything above is day.
+      float mixAmount = smoothstep(-0.05, 0.05, intensity);
+      
+      gl_FragColor = mix(nightColor, dayColor, mixAmount);
+    }
+  `
 });
 
-const earth = new THREE.Mesh(geometry, material);
-earth.rotation.z = 23.4 * (Math.PI / 180); // Tilt Earth to match real axial tilt (23.4 degrees)
+const earth = new THREE.Mesh(geometry, earthMaterial);
+earth.rotation.z = 23.4 * (Math.PI / 180);
 scene.add(earth);
 
 // 3. Add Lights (Crucial for Earth)
@@ -79,6 +115,7 @@ controls.autoRotateSpeed = 0.5; // Adjust rotation speed
 function animate() {
   requestAnimationFrame(animate);
   updateSunPosition(sunLight); // Update sun position every frame
+  earthMaterial.uniforms.sunDirection.value.copy(sunLight.position).normalize();
   controls.update();
   renderer.render(scene, camera);
 }
