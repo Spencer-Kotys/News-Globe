@@ -1,10 +1,19 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
-// Standard Setup
+// Constants for Earth rendering
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 const renderer = new THREE.WebGLRenderer({ canvas: document.querySelector('#bg'), antialias: true });
+
+// Country coordinates for placing markers
+const countryCoords = {
+    "U.S.": { lat: 37.0902, lon: -95.7129 },
+    "Mexico": { lat: 55.3781, lon: -3.4360 },
+    "Israel": { lat: 36.2048, lon: 138.2529 },
+    "France": { lat: -14.2350, lon: -51.9253 },
+    // Add more as needed or fetch a full JSON list
+};
 
 renderer.setSize(window.innerWidth, window.innerHeight);
 camera.position.z = 3;
@@ -148,18 +157,73 @@ function updateClock() {
     timeElement.textContent = `${hours}:${minutes}:${seconds} ${dateString} UTC`;
 }
 
-// 6. Animation Loop
+// 6. Convert Lat/Lon to 3D Vector
+function latLonToVector3(lat, lon, radius) {
+    const phi = (90 - lat) * (Math.PI / 180);
+    const theta = (lon + 180) * (Math.PI / 180);
+
+    const x = -(radius * Math.sin(phi) * Math.cos(theta));
+    const y = radius * Math.cos(phi);
+    const z = radius * Math.sin(phi) * Math.sin(theta);
+
+    return new THREE.Vector3(x, y, z);
+}
+
+const markers = []; // Store markers for raycasting (clicking)
+
+// 7. Add a marker for a news story
+function addMarker(lat, lon, newsTitle, newsUrl) {
+    const markerGeo = new THREE.SphereGeometry(0.02, 16, 16);
+    const markerMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+    const marker = new THREE.Mesh(markerGeo, markerMat);
+
+    // Position the marker slightly above the surface (radius 1.01)
+    const position = latLonToVector3(lat, lon, 1.01);
+    marker.position.copy(position);
+
+    // Store the news data directly on the mesh object
+    marker.userData = { title: newsTitle, url: newsUrl };
+
+    earth.add(marker); // Add to earth so it rotates with it
+    markers.push(marker);
+}
+
+// 8. Raycaster for detecting clicks on markers
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+
+window.addEventListener('click', (event) => {
+    // 1. Convert mouse position to "Normalized Device Coordinates" (-1 to +1)
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+    // 2. Point the raycaster at the mouse
+    raycaster.setFromCamera(mouse, camera);
+
+    // 3. Check if we hit any markers
+    const intersects = raycaster.intersectObjects(markers);
+
+    if (intersects.length > 0) {
+        const clickedMarker = intersects[0].object;
+        alert(`Breaking News: ${clickedMarker.userData.title}`);
+        window.open(clickedMarker.userData.url, '_blank'); // Open news story
+    }
+});
+
+// 9. Animation Loop
 function animate() {
   requestAnimationFrame(animate);
   updateSunPosition(sunLight); // Update sun position every frame
   updateClock(); // Update the clock every frame
   earthMaterial.uniforms.sunDirection.value.copy(sunLight.position).normalize();
+  const scale = 1 + Math.sin(Date.now() * 0.005) * 0.2;
+  markers.forEach(m => m.scale.set(scale, scale, scale));
   controls.update();
   renderer.render(scene, camera);
 }
 animate();
 
-// 7. RSS feed
+// 10. RSS feed
 async function updateRSSFeed() {
     const rssUrl = 'https://rss.app/feeds/mKpvOxHGzgNpP5Ib.xml'; // Google News, World News
     const proxyUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}`;
@@ -169,8 +233,19 @@ async function updateRSSFeed() {
         const data = await response.json();
         
         if (data.status === 'ok') {
+            // Display the headlines in the footer
             const headlines = data.items.map(item => `*** ${item.title} ***`).join('      ');
             document.getElementById('rss-content').textContent = headlines;
+
+            // Add markers for headlines
+            data.items.forEach(item => {
+              for (const country in countryCoords) {
+                if (item.title.includes(country)) {
+                  const coords = countryCoords[country];
+                  addMarker(coords.lat, coords.lon, item.title, item.link);
+                }
+              }
+            });
         }
     } catch (error) {
         console.error('Error fetching RSS:', error);
@@ -184,7 +259,7 @@ updateRSSFeed();
 // Refresh the news every 10 minutes
 setInterval(updateRSSFeed, 600000);
 
-// 8. Handle Window Resize
+// 11. Handle Window Resize
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
