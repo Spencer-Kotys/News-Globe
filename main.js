@@ -17,12 +17,17 @@ async function loadLocationData() {
 
 loadLocationData();
 
-// rss feeds
+// RSS feeds
 const rssFeeds = [
     'https://rss.app/feeds/mKpvOxHGzgNpP5Ib.xml', // Google News, World News
     'https://rss.app/feeds/xsP4Lat7ZnqG58Vp.xml', // Google News, US News
     'https://rss.app/feeds/dcFCoFLUF4HsslSJ.xml', // Google News, Science
 ];
+
+// RSS speed control
+let scrollX = window.innerWidth; // Start off-screen to the right
+const scrollSpeed = 1.5; // Constant pixels per frame
+const rssContent = document.getElementById('rss-content');
 
 // Camera and Renderer Setup
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -220,20 +225,7 @@ window.addEventListener('click', (event) => {
     }
 });
 
-// 9. Animation Loop
-function animate() {
-  requestAnimationFrame(animate);
-  updateSunPosition(sunLight); // Update sun position every frame
-  updateClock(); // Update the clock every frame
-  earthMaterial.uniforms.sunDirection.value.copy(sunLight.position).normalize();
-  const scale = 1 + Math.sin(Date.now() * 0.005) * 0.2;
-  markers.forEach(m => m.scale.set(scale, scale, scale));
-  controls.update();
-  renderer.render(scene, camera);
-}
-animate();
-
-// 10. Clear Globe Markers
+// 9. Clear Globe Markers
 function clearMarkers() {
     markers.forEach(marker => {
         earth.remove(marker); // Remove from the 3D scene
@@ -243,7 +235,7 @@ function clearMarkers() {
     markers.length = 0; // Clear the array
 }
 
-// 11. Fetch and Update RSS Feed
+// 10. Fetch and Update RSS Feed
 async function updateRSSFeed() {
     clearMarkers(); // Clear existing markers before adding new ones
     let allItems = [];
@@ -289,9 +281,36 @@ async function updateRSSFeed() {
 // Refresh the news every 10 minutes
 setInterval(updateRSSFeed, 600000);
 
+// 11. Marquee Scrolling
+function updateMarquee() {
+    scrollX -= scrollSpeed;
+
+    // Check if the text has scrolled entirely off the left side
+    // rssContent.offsetWidth gives us the actual width of the long text string
+    if (scrollX < -rssContent.offsetWidth) {
+        scrollX = window.innerWidth; // Reset to the right side
+    }
+
+    rssContent.style.transform = `translateX(${scrollX}px)`;
+}
+
 // 12. Handle Window Resize
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
+
+// 13. Animation Loop
+function animate() {
+  requestAnimationFrame(animate);
+  updateSunPosition(sunLight); // Update sun position every frame
+  updateClock(); // Update the clock every frame
+  earthMaterial.uniforms.sunDirection.value.copy(sunLight.position).normalize();
+  const scale = 1 + Math.sin(Date.now() * 0.005) * 0.2;
+  markers.forEach(m => m.scale.set(scale, scale, scale));
+  updateMarquee(); // Update the marquee position every frame
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
