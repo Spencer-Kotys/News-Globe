@@ -14,10 +14,13 @@ const loader = new THREE.TextureLoader();
 
 // 2. The Earth Mesh
 const geometry = new THREE.SphereGeometry(1, 64, 64); // High detail segments
-const material = new THREE.MeshStandardMaterial({
-  map: loader.load('/earth_color.jpg'),      // Path to your image in /public
-  bumpMap: loader.load('/earth_bump.tif'),    // Adds texture depth
-  bumpScale: 0.05,
+const material = new THREE.MeshPhongMaterial({
+  map: loader.load('/earth_color.jpg'),      // Base color of Earth
+  normalMap: loader.load('/earth_normal.jpg'),    // Adds texture depth
+  normalScale: new THREE.Vector2(0.5, 0.5), // Adjust normal map intensity
+  specularMap: loader.load('/earth_spec.jpg'),  // Controls shininess
+  specular: new THREE.Color('grey'),
+  shininess: 50, // Controls reflectivness
 });
 
 const earth = new THREE.Mesh(geometry, material);
@@ -37,7 +40,7 @@ const controls = new OrbitControls(camera, renderer.domElement);
 // 5. Animation Loop
 function animate() {
   requestAnimationFrame(animate);
-  earth.rotation.y += 0.002; // Slow spin
+  earth.rotation.y += 0.0001; // Slow spin
   controls.update();
   renderer.render(scene, camera);
 }
