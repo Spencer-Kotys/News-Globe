@@ -158,3 +158,28 @@ function animate() {
   renderer.render(scene, camera);
 }
 animate();
+
+// 7. RSS feed
+async function updateRSSFeed() {
+    const rssUrl = 'https://rss.app/feeds/mKpvOxHGzgNpP5Ib.xml'; // Google News, World News
+    const proxyUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}`;
+
+    try {
+        const response = await fetch(proxyUrl);
+        const data = await response.json();
+        
+        if (data.status === 'ok') {
+            const headlines = data.items.map(item => `*** ${item.title} ***`).join('      ');
+            document.getElementById('rss-content').textContent = headlines;
+        }
+    } catch (error) {
+        console.error('Error fetching RSS:', error);
+        document.getElementById('rss-content').textContent = "Unable to load news feed.";
+    }
+}
+
+// Call it once when the app starts
+updateRSSFeed();
+
+// Refresh the news every 10 minutes
+setInterval(updateRSSFeed, 600000);
