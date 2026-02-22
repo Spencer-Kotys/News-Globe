@@ -183,3 +183,10 @@ updateRSSFeed();
 
 // Refresh the news every 10 minutes
 setInterval(updateRSSFeed, 600000);
+
+// 8. Handle Window Resize
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
