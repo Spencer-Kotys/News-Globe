@@ -243,13 +243,18 @@ function createArc(startVec, endVec) {
     // 4. Create the visual line
     const points = curve.getPoints(50);
     const geometry = new THREE.BufferGeometry().setFromPoints(points);
-    const material = new THREE.LineBasicMaterial({ 
-        color: 0x00ffff, 
+    const material = new THREE.LineDashedMaterial({ 
+        color: 0x00ffff,
+        linewidth: 1,
+        scale: 1,
+        dashSize: 0.05,
+        gapSize: 0.03, 
         transparent: true, 
         opacity: 0.6 
     });
-
+    
     const arcLine = new THREE.Line(geometry, material);
+    arcLine.computeLineDistances(); // Required for dashed lines to work
     earth.add(arcLine); // Add to the earth so it rotates with the globe
     return arcLine;
 }
