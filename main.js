@@ -17,6 +17,8 @@ async function loadLocationData() {
 
 loadLocationData();
 
+const arcs = []; // Store arcs for later updates/removal
+
 // RSS feeds
 const rssFeeds = [
     'https://rss.app/feeds/mKpvOxHGzgNpP5Ib.xml', // Google News, World News
@@ -225,7 +227,34 @@ window.addEventListener('click', (event) => {
     }
 });
 
-// 9. Clear Globe Markers
+// 9. Country Arcs
+function createArc(startVec, endVec) {
+    // 1. Calculate the midpoint
+    const midVec = new THREE.Vector3().addVectors(startVec, endVec).divideScalar(2);
+    
+    // 2. Push the midpoint "outward" from the center of the Earth to create the arc height
+    // If the distance between countries is large, make the arc higher
+    const distance = startVec.distanceTo(endVec);
+    midVec.normalize().multiplyScalar(1 + distance * 0.4); 
+
+    // 3. Create a smooth curve using the three points
+    const curve = new THREE.QuadraticBezierCurve3(startVec, midVec, endVec);
+    
+    // 4. Create the visual line
+    const points = curve.getPoints(50);
+    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+    const material = new THREE.LineBasicMaterial({ 
+        color: 0x00ffff, 
+        transparent: true, 
+        opacity: 0.6 
+    });
+
+    const arcLine = new THREE.Line(geometry, material);
+    earth.add(arcLine); // Add to the earth so it rotates with the globe
+    return arcLine;
+}
+
+// 10. Clear Globe Markers and Arcs
 function clearMarkers() {
     markers.forEach(marker => {
         earth.remove(marker); // Remove from the 3D scene
@@ -233,9 +262,16 @@ function clearMarkers() {
         marker.material.dispose();
     });
     markers.length = 0; // Clear the array
+    // Arc cleanup
+    arcs.forEach(arc => {
+        earth.remove(arc);
+        arc.geometry.dispose();
+        arc.material.dispose();
+    });
+    arcs.length = 0;
 }
 
-// 10. Fetch and Update RSS Feed
+// 11. Fetch and Update RSS Feed
 async function updateRSSFeed() {
     clearMarkers(); // Clear existing markers before adding new ones
     let allItems = [];
@@ -264,13 +300,23 @@ async function updateRSSFeed() {
         allItems.forEach(item => {
           if (seenTitles.has(item.title)) return; // Skip if we've already added a marker for this title
           seenTitles.add(item.title);
+          const foundPlaces = [];
             for (const place in locationData) {
                 if (item.title.includes(place)) {
                   const coords = locationData[place];
                   addMarker(coords.lat, coords.lon, item.title, item.link);
-                  break; // Stop checking other places once we find a match
+                  foundPlaces.push(place);
                 }
             }
+          if (foundPlaces.length >= 2) {
+            // convest the first two found places to vectors and create an arc between them
+            const cord0 = locationData[foundPlaces[0]];
+            const vec0 = latLonToVector3(cord0.lat, cord0.lon, 1.01);
+            const cord1 = locationData[foundPlaces[1]];
+            const vec1 = latLonToVector3(cord1.lat, cord1.lon, 1.01);
+            const newArc = createArc(vec0, vec1);
+            arcs.push(newArc); // Store the arc for later updates/removal
+          }
         });
     } catch (error) {
         console.error('Error fetching RSS:', error);
@@ -281,7 +327,7 @@ async function updateRSSFeed() {
 // Refresh the news every 10 minutes
 setInterval(updateRSSFeed, 600000);
 
-// 11. Marquee Scrolling
+// 12. Marquee Scrolling
 function updateMarquee() {
     scrollX -= scrollSpeed;
 
@@ -294,14 +340,14 @@ function updateMarquee() {
     rssContent.style.transform = `translateX(${scrollX}px)`;
 }
 
-// 12. Handle Window Resize
+// 13. Handle Window Resize
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-// 13. Animation Loop
+// 14. Animation Loop
 function animate() {
   requestAnimationFrame(animate);
   updateSunPosition(sunLight); // Update sun position every frame
