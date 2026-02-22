@@ -7,14 +7,17 @@ const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerH
 const renderer = new THREE.WebGLRenderer({ canvas: document.querySelector('#bg'), antialias: true });
 
 // Country coordinates for placing markers
-const countryCoords = {
-    "U.S.": { lat: 37.0902, lon: -95.7129 },
-    "Mexico": { lat: 55.3781, lon: -3.4360 },
-    "Israel": { lat: 36.2048, lon: 138.2529 },
-    "France": { lat: -14.2350, lon: -51.9253 },
-    // Add more as needed or fetch a full JSON list
-};
+let locationData = {};
 
+async function loadLocationData() {
+  const response = await fetch('/locations.json');
+  locationData = await response.json();
+  updateRSSFeed();
+}
+
+loadLocationData();
+
+// Camera and Renderer Setup
 renderer.setSize(window.innerWidth, window.innerHeight);
 camera.position.z = 3;
 
@@ -223,8 +226,19 @@ function animate() {
 }
 animate();
 
-// 10. RSS feed
+// 10. Clear Globe Markers
+function clearMarkers() {
+    markers.forEach(marker => {
+        earth.remove(marker); // Remove from the 3D scene
+        marker.geometry.dispose(); // Free up memory
+        marker.material.dispose();
+    });
+    markers.length = 0; // Clear the array
+}
+
+// 11. Fetch and Update RSS Feed
 async function updateRSSFeed() {
+    clearMarkers(); // Clear existing markers before adding new ones
     const rssUrl = 'https://rss.app/feeds/mKpvOxHGzgNpP5Ib.xml'; // Google News, World News
     const proxyUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}`;
 
@@ -239,9 +253,9 @@ async function updateRSSFeed() {
 
             // Add markers for headlines
             data.items.forEach(item => {
-              for (const country in countryCoords) {
-                if (item.title.includes(country)) {
-                  const coords = countryCoords[country];
+              for (const place in locationData) {
+                if (item.title.includes(place)) {
+                  const coords = locationData[place];
                   addMarker(coords.lat, coords.lon, item.title, item.link);
                 }
               }
@@ -253,13 +267,10 @@ async function updateRSSFeed() {
     }
 }
 
-// Call it once when the app starts
-updateRSSFeed();
-
 // Refresh the news every 10 minutes
 setInterval(updateRSSFeed, 600000);
 
-// 11. Handle Window Resize
+// 12. Handle Window Resize
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
