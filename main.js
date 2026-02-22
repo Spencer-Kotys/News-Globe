@@ -24,6 +24,7 @@ const material = new THREE.MeshPhongMaterial({
 });
 
 const earth = new THREE.Mesh(geometry, material);
+earth.rotation.z = 23.4 * (Math.PI / 180); // Tilt Earth to match real axial tilt (23.4 degrees)
 scene.add(earth);
 
 // 3. Add Lights (Crucial for Earth)
@@ -31,16 +32,53 @@ const ambientLight = new THREE.AmbientLight(0xffffff, 0.2); // Soft overall ligh
 scene.add(ambientLight);
 
 const sunLight = new THREE.DirectionalLight(0xffffff, 1.5);
-sunLight.position.set(5, 3, 5); // Light from the side
+
+function getSunPosition() {
+    const now = new Date();
+    
+    // 1. Calculate Day of the Year (0-365)
+    const start = new Date(now.getFullYear(), 0, 0);
+    const diff = now - start;
+    const dayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+    // 2. Calculate Solar Declination (The Sun's Latitude)
+    // The Earth tilts 23.45 degrees. This formula finds where the sun hits directly.
+    const declination = 23.45 * Math.sin((Math.PI / 180) * (360 / 365) * (dayOfYear - 81));
+
+    // 3. Calculate Solar Noon / Time Offset (The Sun's Longitude)
+    // We use UTC time to ensure the Sun is over the Prime Meridian at Noon UTC.
+    const utcHours = now.getUTCHours() + now.getUTCMinutes() / 60 + now.getUTCSeconds() / 3600;
+    const longitude = (utcHours - 12) * 15; // 15 degrees per hour
+
+    return {
+        lat: declination,
+        lon: -longitude // Negative because Earth rotates East to West
+    };
+}
+
+function updateSunPosition(sunLight) {
+    const pos = getSunPosition();
+    const distance = 20; // Distance of the light from Earth center
+
+    // Convert Lat/Lon to 3D Cartesian Coordinates (x, y, z)
+    const phi = (90 - pos.lat) * (Math.PI / 180);
+    const theta = (pos.lon + 180) * (Math.PI / 180);
+
+    sunLight.position.x = -distance * Math.sin(phi) * Math.cos(theta);
+    sunLight.position.y = distance * Math.cos(phi);
+    sunLight.position.z = distance * Math.sin(phi) * Math.sin(theta);
+}
 scene.add(sunLight);
 
 // 4. Interaction (OrbitControls)
 const controls = new OrbitControls(camera, renderer.domElement);
+controls.autoRotate = true; // Automatically rotate the scene
+controls.autoRotateSpeed = 0.5; // Adjust rotation speed
 
 // 5. Animation Loop
 function animate() {
   requestAnimationFrame(animate);
-  earth.rotation.y += 0.0001; // Slow spin
+  updateSunPosition(sunLight); // Update sun position every frame
   controls.update();
   renderer.render(scene, camera);
 }
