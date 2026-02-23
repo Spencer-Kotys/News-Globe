@@ -205,9 +205,10 @@ function addMarker(lat, lon, newsTitle, newsUrl) {
     markers.push(marker);
 }
 
-// 8. Raycaster for detecting clicks on markers
+// 8. Raycaster for detecting clicks and hovers on markers
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
+const tooltip = document.getElementById('tooltip');
 
 window.addEventListener('click', (event) => {
     // 1. Convert mouse position to "Normalized Device Coordinates" (-1 to +1)
@@ -224,6 +225,31 @@ window.addEventListener('click', (event) => {
         const clickedMarker = intersects[0].object;
         alert(`Breaking News: ${clickedMarker.userData.title}`);
         window.open(clickedMarker.userData.url, '_blank'); // Open news story
+    }
+});
+
+window.addEventListener('mousemove', (event) => {
+    // 1. Convert mouse position to "Normalized Device Coordinates" (-1 to +1)
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+    // 2. Point the raycaster at the mouse
+    raycaster.setFromCamera(mouse, camera);
+
+    // 3. Check if we hit any markers
+    const intersects = raycaster.intersectObjects(markers);
+
+    if (intersects.length > 0) {
+      const hoverMarker = intersects[0].object;  
+      // Position tooltip near the mouse
+      tooltip.style.left = `${event.clientX + 20}px`;
+      tooltip.style.top = `${event.clientY + 20}px`;
+      tooltip.style.display = 'block';
+      tooltip.textContent = hoverMarker.userData.title; // Show news title in tooltip
+      document.body.style.cursor = 'pointer';
+    } else {
+      tooltip.style.display = 'none';
+      document.body.style.cursor = 'default';
     }
 });
 
