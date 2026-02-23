@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
 // User Controlled Settings
 const rotationSlider = document.getElementById('rotation-slider');
+const utcOffsetInput = document.getElementById('utc-offset');
 const settingsToggle = document.getElementById('settings-toggle');
 const settingsMenu = document.getElementById('settings-menu');
 
@@ -169,8 +170,10 @@ controls.autoRotate = true; // Automatically rotate the scene
 // 5. Time Display
 const timeElement = document.getElementById('time-display');
 function updateClock() {
+    const offsetHours = parseInt(utcOffsetInput.value);
     const now = new Date();
-    
+    now.setUTCHours(now.getUTCHours() + offsetHours); // Apply user-defined UTC offset
+
     // Format the date
     const dateString = now.getUTCDate() + " " + now.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' }) + " " + now.getUTCFullYear();
     
@@ -178,8 +181,19 @@ function updateClock() {
     const hours = String(now.getUTCHours()).padStart(2, '0');
     const minutes = String(now.getUTCMinutes()).padStart(2, '0');
     const seconds = String(now.getUTCSeconds()).padStart(2, '0');
+
+    // Add ACP 121 for UTC offset
+    let xHours = "";
+    const eastLetters = ['A','B','C','D','E','F','G','H','I','K','L','M'];
+    const westLetters = ['Z','N','O','P','Q','R','S','T','U','V','W','X','Y'];
+    if (offsetHours > 0) {
+      xHours += `-${offsetHours}${eastLetters[offsetHours - 1]}`;
+    } else {
+      let absOffset = Math.abs(offsetHours);
+      xHours += `+${absOffset}${westLetters[absOffset]}`;
+    }
     
-    timeElement.textContent = `${hours}:${minutes}:${seconds} ${dateString} UTC`;
+    timeElement.textContent = `${hours}:${minutes}:${seconds} ${dateString} ${xHours}`;
 }
 
 // 6. Convert Lat/Lon to 3D Vector
