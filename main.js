@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // User Controlled Settings
 const rotationSlider = document.getElementById('rotation-slider');
@@ -20,7 +20,7 @@ const renderer = new THREE.WebGLRenderer({ canvas: document.querySelector('#bg')
 let locationData = {};
 
 async function loadLocationData() {
-  const response = await fetch('/locations.json');
+  const response = await fetch('./locations.json');
   locationData = await response.json();
   updateRSSFeed();
 }
