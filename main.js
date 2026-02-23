@@ -49,10 +49,10 @@ camera.position.z = 3;
 const loader = new THREE.TextureLoader();
 
 // 2. The Earth Mesh
-const dayTexture = loader.load('./earth_color.jpg');
-const nightTexture = loader.load('./earth_night.jpg');
-const normalMap = loader.load('./earth_normal.jpg');
-const specMap = loader.load('./earth_spec.jpg');
+const dayTexture = loader.load('./public/earth_color.jpg');
+const nightTexture = loader.load('./public/earth_night.jpg');
+const normalMap = loader.load('./public/earth_normal.jpg');
+const specMap = loader.load('./public/earth_spec.jpg');
 const geometry = new THREE.SphereGeometry(1, 64, 64);
 const earthMaterial = new THREE.ShaderMaterial({
   uniforms: {
