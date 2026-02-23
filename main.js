@@ -1,6 +1,15 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
+// User Controlled Settings
+const rotationSlider = document.getElementById('rotation-slider');
+const settingsToggle = document.getElementById('settings-toggle');
+const settingsMenu = document.getElementById('settings-menu');
+
+settingsToggle.onclick = () => {
+  settingsMenu.style.display = settingsMenu.style.display === 'block' ? 'none' : 'block';
+}
+
 // Constants for Earth rendering
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -156,7 +165,6 @@ scene.add(sunLight);
 // 4. Interaction (OrbitControls)
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.autoRotate = true; // Automatically rotate the scene
-controls.autoRotateSpeed = 0.2; // Adjust rotation speed
 
 // 5. Time Display
 const timeElement = document.getElementById('time-display');
@@ -387,6 +395,7 @@ function animate() {
   const scale = 1 + Math.sin(Date.now() * 0.005) * 0.2;
   markers.forEach(m => m.scale.set(scale, scale, scale));
   updateMarquee(); // Update the marquee position every frame
+  controls.autoRotateSpeed = parseFloat(rotationSlider.value); // Use the slider value for rotation speed
   controls.update();
   renderer.render(scene, camera);
 }
