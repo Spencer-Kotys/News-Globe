@@ -245,6 +245,9 @@ function rayCaster(event) {
 
   if (intersects.length > 0) {
       const marker = intersects[0].object;
+
+      // Stop earth rotation when hovering over a marker
+      controls.autoRotate = false;
       
       // Generate a list of clickable headlines
       let htmlContent = `<div style="font-weight:bold; border-bottom:1px solid #666; margin-bottom:5px;">News in this area:</div>`;
@@ -268,6 +271,8 @@ function rayCaster(event) {
               tooltip.style.display = 'none';
           }, 5000);
           document.body.style.cursor = 'default';
+          // Resume earth rotation when not hovering over a marker
+          controls.autoRotate = true;
       }
     }
 }
