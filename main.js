@@ -221,7 +221,11 @@ function addMarker(lat, lon, newsTitle, newsUrl) {
     marker.position.copy(position);
 
     // Store the news data directly on the mesh object
-    marker.userData = { title: newsTitle, url: newsUrl };
+    marker.userData = { 
+      lat,
+      lon,
+      stories: [{ title: newsTitle, url: newsUrl }] // Store as an array to allow multiple stories per location
+    };
 
     earth.add(marker); // Add to earth so it rotates with it
     markers.push(marker);
@@ -232,47 +236,48 @@ const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 const tooltip = document.getElementById('tooltip');
 
-window.addEventListener('click', (event) => {
-    // 1. Convert mouse position to "Normalized Device Coordinates" (-1 to +1)
-    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+function rayCaster(event) {
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
-    // 2. Point the raycaster at the mouse
-    raycaster.setFromCamera(mouse, camera);
+  raycaster.setFromCamera(mouse, camera);
+  const intersects = raycaster.intersectObjects(markers);
 
-    // 3. Check if we hit any markers
-    const intersects = raycaster.intersectObjects(markers);
+  if (intersects.length > 0) {
+      const marker = intersects[0].object;
+      
+      // Generate a list of clickable headlines
+      let htmlContent = `<div style="font-weight:bold; border-bottom:1px solid #666; margin-bottom:5px;">News in this area:</div>`;
+      marker.userData.stories.forEach(story => {
+          htmlContent += `<div style="margin-bottom:8px;">
+              <a href="${story.url}" target="_blank" style="color:white; text-decoration:none;">• ${story.title}</a>
+          </div>`;
+      });
 
-    if (intersects.length > 0) {
-        const clickedMarker = intersects[0].object;
-        alert(`Breaking News: ${clickedMarker.userData.title}`);
-        window.open(clickedMarker.userData.url, '_blank'); // Open news story
-    }
-});
-
-window.addEventListener('mousemove', (event) => {
-    // 1. Convert mouse position to "Normalized Device Coordinates" (-1 to +1)
-    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-
-    // 2. Point the raycaster at the mouse
-    raycaster.setFromCamera(mouse, camera);
-
-    // 3. Check if we hit any markers
-    const intersects = raycaster.intersectObjects(markers);
-
-    if (intersects.length > 0) {
-      const hoverMarker = intersects[0].object;  
-      // Position tooltip near the mouse
+      tooltip.innerHTML = htmlContent;
       tooltip.style.left = `${event.clientX + 20}px`;
       tooltip.style.top = `${event.clientY + 20}px`;
       tooltip.style.display = 'block';
-      tooltip.textContent = hoverMarker.userData.title; // Show news title in tooltip
       document.body.style.cursor = 'pointer';
-    } else {
-      tooltip.style.display = 'none';
-      document.body.style.cursor = 'default';
+  } else {
+      // Hide tooltip if clicking the empty ocean/space, 
+      // but NOT if clicking inside the tooltip itself
+      if (!event.target.closest('#tooltip')) {
+          // wait one second before hiding the tooltip, in case the user is moving from the marker to the tooltip
+          setTimeout(() => {
+              tooltip.style.display = 'none';
+          }, 5000);
+          document.body.style.cursor = 'default';
+      }
     }
+}
+
+window.addEventListener('mousedown', (event) => {
+  rayCaster(event);
+});
+
+window.addEventListener('mousemove', (event) => {
+  rayCaster(event);
 });
 
 // 9. Country Arcs
@@ -357,7 +362,18 @@ async function updateRSSFeed() {
             for (const place in locationData) {
                 if (item.title.includes(place)) {
                   const coords = locationData[place];
-                  addMarker(coords.lat, coords.lon, item.title, item.link);
+                  // Check if a marker exists for this location
+                  let existingMarker = markers.find(m =>
+                    m.userData.lat === coords.lat && m.userData.lon === coords.lon
+                  );
+                  if (existingMarker) {
+                    // Add story to existing marker's list
+                    existingMarker.userData.stories.push({ title: item.title, url: item.link });
+                  } else {
+                    // Create a new marker for this location
+                    addMarker(coords.lat, coords.lon, item.title, item.link);
+                  }
+                  // Keep track of found places for arc creation
                   foundPlaces.push(place);
                 }
             }
