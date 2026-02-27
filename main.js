@@ -245,7 +245,7 @@ function rayCaster(event) {
   mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
   mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
-  // Update the raycaster with the camera and mouse position
+  // Point raycaster at mouse and check for intersections with markers
   raycaster.setFromCamera(mouse, camera);
   const intersects = raycaster.intersectObjects(markers);
 
@@ -271,15 +271,17 @@ function rayCaster(event) {
   } else {
       // Hide tooltip if clicking the empty ocean/space, 
       // but NOT if clicking inside the tooltip itself
-      if (!event.target.closest('#tooltip')) {
-          // wait two seconds before hiding the tooltip, in case the user is moving from the marker to the tooltip
+      // and only if the tooltip is currently visible (to avoid unnecessary timeouts)
+      if (!event.target.closest('#tooltip') && tooltip.style.display === 'block') {
+          // wait two seconds before hiding the tooltip, 
+          // in case the user is moving from the marker to the tooltip
           setTimeout(() => {
               tooltip.style.display = 'none';
+              document.body.style.cursor = 'default';
+              controls.autoRotate = true;
           }, 2000);
-          document.body.style.cursor = 'default';
-          // Resume earth rotation when not hovering over a marker
-          controls.autoRotate = true;
       }
+      
     }
 }
 
