@@ -116,8 +116,11 @@ const earthMaterial = new THREE.ShaderMaterial({
   `
 });
 
+// Create the Earth mesh
 const earth = new THREE.Mesh(geometry, earthMaterial);
-earth.rotation.z = 23.4 * (Math.PI / 180);
+// Tilt the Earth to match the real axial tilt of 23.4 degrees
+earth.rotation.z = -23.4 * (Math.PI / 180);
+// Add the Earth to the scene
 scene.add(earth);
 
 // 3. Add Lights (Crucial for Earth)
@@ -151,7 +154,7 @@ function getSunPosition() {
 
 function updateSunPosition(sunLight) {
     const pos = getSunPosition();
-    const distance = 20; // Distance of the light from Earth center
+    const distance = 1000; // Distance of the light from Earth center
 
     // Convert Lat/Lon to 3D Cartesian Coordinates (x, y, z)
     const phi = (90 - pos.lat) * (Math.PI / 180);
