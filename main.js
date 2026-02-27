@@ -7,6 +7,7 @@ const utcOffsetInput = document.getElementById('utc-offset');
 const settingsToggle = document.getElementById('settings-toggle');
 const settingsMenu = document.getElementById('settings-menu');
 
+// Toggle the settings menu
 settingsToggle.onclick = () => {
   settingsMenu.style.display = settingsMenu.style.display === 'block' ? 'none' : 'block';
 }
@@ -19,6 +20,7 @@ const renderer = new THREE.WebGLRenderer({ canvas: document.querySelector('#bg')
 // Country coordinates for placing markers
 let locationData = {};
 
+// Load location data from JSON file
 async function loadLocationData() {
   const response = await fetch('./locations.json');
   locationData = await response.json();
@@ -131,6 +133,7 @@ scene.add(ambientLight);
 
 const sunLight = new THREE.DirectionalLight(0xffffff, 1.5);
 
+// Function to calculate the sun's position based on the current date and time
 function getSunPosition() {
     const now = new Date();
     
@@ -154,6 +157,7 @@ function getSunPosition() {
     };
 }
 
+// Update the sun's position every frame to create a dynamic day/night cycle
 function updateSunPosition(sunLight) {
     const pos = getSunPosition();
     const distance = 1000; // Distance of the light from Earth center
@@ -245,6 +249,7 @@ raycaster.params.Points.threshold = 0.05; // Adjust the threshold for better cli
 const mouse = new THREE.Vector2();
 const tooltip = document.getElementById('tooltip');
 
+// Handle mouse movement for hover and click interactions
 function rayCaster(event) {
   // Calculate mouse position in normalized device coordinates (-1 to +1) for both components
   mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
@@ -290,6 +295,7 @@ function rayCaster(event) {
     }
 }
 
+// Listen for mouse clicks to handle tooltip interactions
 window.addEventListener('mousedown', (event) => {
   // If the user clicks anywhere outside the tooltip, hide it immediately
   if (!event.target.closest('#tooltip')) {
@@ -299,6 +305,7 @@ window.addEventListener('mousedown', (event) => {
   }
 });
 
+// Listen for mouse movement to handle hover interactions
 window.addEventListener('mousemove', (event) => {
   rayCaster(event);
 });

@@ -45,6 +45,22 @@
             padding: 8px 12px;
             border-radius: 4px;
         }
+        #tooltip {
+            position: absolute;
+            display: none;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 8px;
+            border-radius: 4px;
+            font-family: Georgia, serif;
+            pointer-events: auto;
+            z-index: 1000;
+            max-width: 250px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-size: 1rem;
+            border: 1px solid #ff0000;
+        }
         #rss-footer {
             position: absolute;
             bottom: 0;
@@ -96,24 +112,9 @@
             <p style="font-size: 0.8em; margin-top: 10px;">Adjusts time display.</p>
         </div>
     </div>
+    <div id="tooltip"></div>
     <div id="rss-footer">
         <div id="rss-content">Loading news...</div>
-    </div>
-    <div id="tooltip" style="
-        position: absolute;
-        display: none;
-        background: rgba(0, 0, 0, 0.7);
-        color: white;
-        padding: 8px;
-        border-radius: 4px;
-        font-family: Georgia, serif;
-        pointer-events: auto;
-        z-index: 1000;
-        max-width: 250px;
-        max-height: 200px;
-        overflow-y: auto;
-        font-size: 1rem;
-        border: 1px solid #ff0000;">
     </div>
 </body>
 </html>
