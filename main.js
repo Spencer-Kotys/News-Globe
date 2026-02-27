@@ -212,8 +212,11 @@ const markers = []; // Store markers for raycasting (clicking)
 
 // 7. Add a marker for a news story
 function addMarker(lat, lon, newsTitle, newsUrl) {
+    // Create a small sphere geometry for the marker
     const markerGeo = new THREE.SphereGeometry(0.02, 16, 16);
+    // Set marker color
     const markerMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+    // Create the marker mesh
     const marker = new THREE.Mesh(markerGeo, markerMat);
 
     // Position the marker slightly above the surface (radius 1.01)
@@ -228,18 +231,21 @@ function addMarker(lat, lon, newsTitle, newsUrl) {
     };
 
     earth.add(marker); // Add to earth so it rotates with it
-    markers.push(marker);
+    markers.push(marker); // Store the marker for raycasting
 }
 
 // 8. Raycaster for detecting clicks and hovers on markers
 const raycaster = new THREE.Raycaster();
+raycaster.params.Points.threshold = 0.05; // Adjust the threshold for better click detection on small markers
 const mouse = new THREE.Vector2();
 const tooltip = document.getElementById('tooltip');
 
 function rayCaster(event) {
+  // Calculate mouse position in normalized device coordinates (-1 to +1) for both components
   mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
   mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
+  // Update the raycaster with the camera and mouse position
   raycaster.setFromCamera(mouse, camera);
   const intersects = raycaster.intersectObjects(markers);
 
@@ -266,10 +272,10 @@ function rayCaster(event) {
       // Hide tooltip if clicking the empty ocean/space, 
       // but NOT if clicking inside the tooltip itself
       if (!event.target.closest('#tooltip')) {
-          // wait one second before hiding the tooltip, in case the user is moving from the marker to the tooltip
+          // wait two seconds before hiding the tooltip, in case the user is moving from the marker to the tooltip
           setTimeout(() => {
               tooltip.style.display = 'none';
-          }, 5000);
+          }, 2000);
           document.body.style.cursor = 'default';
           // Resume earth rotation when not hovering over a marker
           controls.autoRotate = true;
