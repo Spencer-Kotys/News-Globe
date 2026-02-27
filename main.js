@@ -286,7 +286,12 @@ function rayCaster(event) {
 }
 
 window.addEventListener('mousedown', (event) => {
-  rayCaster(event);
+  // If the user clicks anywhere outside the tooltip, hide it immediately
+  if (!event.target.closest('#tooltip')) {
+    tooltip.style.display = 'none';
+    document.body.style.cursor = 'default';
+    controls.autoRotate = true;
+  }
 });
 
 window.addEventListener('mousemove', (event) => {
