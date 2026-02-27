@@ -38,6 +38,31 @@ const rssFeeds = [
   { name: "Google Science News", url: 'https://rss.app/feeds/dcFCoFLUF4HsslSJ.xml', enabled: true }
 ];
 
+const addFeedBtn = document.getElementById('add-feed-btn');
+const customFeedInput = document.getElementById('custom-feed-url');
+
+addFeedBtn.addEventListener('click', () => {
+    const url = customFeedInput.value.trim();
+    
+    // Basic validation
+    if (url && url.startsWith('http')) {
+        const newFeed = {
+            name: "Custom Feed " + (rssFeeds.length + 1),
+            url: url,
+            enabled: true
+        };
+        
+        rssFeeds.push(newFeed);
+        customFeedInput.value = ''; // Clear input
+        
+        // Refresh the UI and the Globe
+        initFeedUI(); 
+        updateRSSFeed(); 
+    } else {
+        alert("Please enter a valid RSS URL starting with http");
+    }
+});
+
 // Get elements from html for feed management
 const feedManager = document.getElementById('feed-manager');
 const activeFeeds = document.getElementById('active-feeds');
