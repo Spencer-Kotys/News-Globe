@@ -101,9 +101,13 @@ const earthMaterial = new THREE.ShaderMaterial({
 
       // 2. Diffuse Lighting (Day/Night transition)
       float intensity = dot(N, L);
-      float mixAmount = smoothstep(-0.05, 0.05, intensity);
+      float mixAmount = smoothstep(-0.15, 0.15, intensity);
 
-      // 3. Specular Reflection (The "Glint" on the water)
+      // 3. "Twilight Glow" (Soft transition around the terminator)
+      float sunset = smoothstep(0.3, 0.0, abs(intensity));
+      vec3 sunsetColor = vec3(0.8, 0.4, 0.2) * sunset * 0.3; // Orange glow at sunset
+
+      // 4. Specular Reflection (The "Glint" on the water)
       // We only want reflections on the "day" side where the specMap is bright (water)
       vec3 R = reflect(-L, N);
       float specStrength = pow(max(dot(R, V), 0.0), 32.0) * specValue * mixAmount;
@@ -111,15 +115,13 @@ const earthMaterial = new THREE.ShaderMaterial({
 
       // 4. Combine everything
       vec3 baseColor = mix(nightColor.rgb, dayColor.rgb, mixAmount);
-      gl_FragColor = vec4(baseColor + specularReflection, 1.0);
+      gl_FragColor = vec4(baseColor + sunsetColor + specularReflection, 1.0);
     }
   `
 });
 
 // Create the Earth mesh
 const earth = new THREE.Mesh(geometry, earthMaterial);
-// Tilt the Earth to match the real axial tilt of 23.4 degrees
-earth.rotation.z = -23.4 * (Math.PI / 180);
 // Add the Earth to the scene
 scene.add(earth);
 
