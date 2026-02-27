@@ -33,10 +33,47 @@ const arcs = []; // Store arcs for later updates/removal
 
 // RSS feeds
 const rssFeeds = [
-    'https://rss.app/feeds/mKpvOxHGzgNpP5Ib.xml', // Google News, World News
-    'https://rss.app/feeds/xsP4Lat7ZnqG58Vp.xml', // Google News, US News
-    'https://rss.app/feeds/dcFCoFLUF4HsslSJ.xml', // Google News, Science
+  { name: "Google World News", url: 'https://rss.app/feeds/mKpvOxHGzgNpP5Ib.xml', enabled: true },
+  { name: "Google US News", url: 'https://rss.app/feeds/xsP4Lat7ZnqG58Vp.xml', enabled: true },
+  { name: "Google Science News", url: 'https://rss.app/feeds/dcFCoFLUF4HsslSJ.xml', enabled: true }
 ];
+
+// Get elements from html for feed management
+const feedManager = document.getElementById('feed-manager');
+const activeFeeds = document.getElementById('active-feeds');
+
+// Build the feed management UI
+function initFeedUI() {
+    feedManager.innerHTML = '';
+    activeFeeds.innerHTML = '';
+
+    rssFeeds.forEach((feed, index) => {
+        // Create Checkbox in Settings
+        const div = document.createElement('div');
+        div.innerHTML = `
+            <input type="checkbox" id="feed-${index}" ${feed.enabled ? 'checked' : ''}>
+            <label style="display:inline;" for="feed-${index}">${feed.name}</label>
+        `;
+        feedManager.appendChild(div);
+
+        // Add Listener
+        div.querySelector('input').addEventListener('change', (e) => {
+            feed.enabled = e.target.checked;
+            updateRSSFeed(); // Refresh markers and ticker
+            initFeedUI();    // Refresh labels
+        });
+
+        // Add Label to the "Active" list above footer
+        if (feed.enabled) {
+            const label = document.createElement('span');
+            label.textContent = `• ${feed.name}`;
+            label.style.background = "rgba(0, 255, 255, 0.2)";
+            label.style.padding = "2px 6px";
+            label.style.borderRadius = "4px";
+            activeFeeds.appendChild(label);
+        }
+    });
+}
 
 // RSS speed control
 let scrollX = window.innerWidth; // Start off-screen to the right
@@ -364,10 +401,25 @@ async function updateRSSFeed() {
     clearMarkers(); // Clear existing markers before adding new ones
     let allItems = [];
 
+    // Filter enabled feeds
+    const enabledFeeds = rssFeeds
+      .filter(feed => feed.enabled)
+      .map(feed => feed.url);
+
+    // If no feeds are enabled, show a message and exit
+    if (enabledFeeds.length === 0) {
+        document.getElementById('rss-content').textContent = "No news feeds selected.";
+        return;
+    }
+
     // Map each URL to a fetch promise
-    const fetchPromises = rssFeeds.map(url => {
-        const proxyUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(url)}`;
-        return fetch(proxyUrl).then(res => res.json());
+    const fetchPromises = enabledFeeds.map(url => {
+        const sanitizedUrl = encodeURIComponent(url.trim());
+        const proxyUrl = `https://api.rss2json.com/v1/api.json?rss_url=${sanitizedUrl}`;
+        return fetch(proxyUrl).then(res => {
+          if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+           return res.json();
+        });
     });
 
     try {
@@ -459,4 +511,7 @@ function animate() {
   controls.update();
   renderer.render(scene, camera);
 }
-animate();
+
+// 15. Initialized functions
+initFeedUI(); // Start the feed management UI
+animate(); // Start the animation loop

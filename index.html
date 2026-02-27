@@ -45,6 +45,13 @@
             padding: 8px 12px;
             border-radius: 4px;
         }
+        #feed-manager {
+            max-height: 150px;
+            overflow-y: auto;
+            background: #222;
+            padding: 5px;
+            border-radius: 4px;
+        }
         #tooltip {
             position: absolute;
             display: none;
@@ -60,6 +67,25 @@
             overflow-y: auto;
             font-size: 1rem;
             border: 1px solid #ff0000;
+        }
+        #active-feeds {
+            position: absolute;
+            bottom: 50px;
+            left: 10px;
+            z-index: 100;
+            font-family: "Georgia", serif;
+            color: white;
+            font-size: 0.8rem;
+        }
+        #feed-span {
+            font-weight: bold;
+            color: #fff;
+        }
+        #feed-list {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 5px;
         }
         #rss-footer {
             position: absolute;
@@ -110,9 +136,16 @@
             <input type="number" id="utc-offset" min="-12" max="12" value="0">
             
             <p style="font-size: 0.8em; margin-top: 10px;">Adjusts time display.</p>
+
+            <label>Manage News Feeds:</label>
+            <div id="feed-manager"></div>
         </div>
     </div>
     <div id="tooltip"></div>
+    <div id ="active-feeds">
+        <span id="feed-span">Active Feeds:</span>
+        <div id="feed-list"></div>
+    </div>
     <div id="rss-footer">
         <div id="rss-content">Loading news...</div>
     </div>
