@@ -126,7 +126,7 @@ const mouse = new THREE.Vector2();
 const tooltip = document.getElementById('tooltip');
 
 // RSS feeds
-const rssFeeds = [
+let rssFeeds = JSON.parse(localStorage.getItem('globe_feeds')) || [
   { name: "Google World News", url: 'https://rss.app/feeds/mKpvOxHGzgNpP5Ib.xml', enabled: true },
   { name: "Google US News", url: 'https://rss.app/feeds/xsP4Lat7ZnqG58Vp.xml', enabled: true },
   { name: "Google Science News", url: 'https://rss.app/feeds/dcFCoFLUF4HsslSJ.xml', enabled: true }
@@ -480,6 +480,11 @@ function updateMarquee() {
     rssContent.style.transform = `translateX(${scrollX}px)`;
 }
 
+// Save function
+function saveSettings() {
+    localStorage.setItem('globe_feeds', JSON.stringify(rssFeeds));
+    localStorage.setItem('globe_utc_offset', utcOffsetInput.value);
+}
 // Animation function to render the scene and update elements every frame
 function animate() {
   requestAnimationFrame(animate);
@@ -499,28 +504,20 @@ function animate() {
 settingsToggle.onclick = () => {
   settingsMenu.style.display = settingsMenu.style.display === 'block' ? 'none' : 'block';
 }
-// Listen for adding custom RSS feeds through the settings menu
-addFeedBtn.addEventListener('click', () => {
-    const url = customFeedInput.value.trim();
-    
-    // Basic validation
+// Listen for adding custom RSS feeds through the settings menu and update the feed list and markers accordingly
+document.getElementById('add-feed-btn').addEventListener('click', () => {
+    const url = document.getElementById('custom-feed-url').value.trim();
     if (url && url.startsWith('http')) {
-        const newFeed = {
+        rssFeeds.push({
             name: "Custom Feed " + (rssFeeds.length + 1),
             url: url,
             enabled: true
-        };
-        
-        rssFeeds.push(newFeed);
-        customFeedInput.value = ''; // Clear input
-        
-        // Refresh the UI and the Globe
+        });
+        saveSettings(); // Persist to localStorage
         initFeedUI(); 
         updateRSSFeed(); 
-    } else {
-        alert("Please enter a valid RSS URL starting with http");
     }
-})
+});
 // Listen for mouse clicks to handle tooltip interactions
 window.addEventListener('mousedown', (event) => {
   // If the user clicks anywhere outside the tooltip, hide it immediately
@@ -540,6 +537,8 @@ window.addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
+// UTC input listener
+utcOffsetInput.addEventListener('change', saveSettings);
 // Initialize functions *******************************************************************************************************************
 loadLocationData(); // Load location data and then fetch the initial RSS feed
 setInterval(updateRSSFeed, 600000); // Refresh news every 10 minutes
