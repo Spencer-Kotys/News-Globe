@@ -1,118 +1,35 @@
+// main.js - Core logic for the Interactive 3D News Globe
+// This script sets up a 3D globe using Three.js, fetches news from multiple RSS feeds, 
+// and places interactive markers on the globe based on news story locations. 
+// It also includes a scrolling ticker for headlines and a settings menu for user customization.
+// Required imports from Three.js and its OrbitControls for user interaction with the globe.
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
+// Global Variables ***********************************************************
 // User Controlled Settings
 const rotationSlider = document.getElementById('rotation-slider');
 const utcOffsetInput = document.getElementById('utc-offset');
 const settingsToggle = document.getElementById('settings-toggle');
 const settingsMenu = document.getElementById('settings-menu');
 
-// Toggle the settings menu
-settingsToggle.onclick = () => {
-  settingsMenu.style.display = settingsMenu.style.display === 'block' ? 'none' : 'block';
-}
-
 // Constants for Earth rendering
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 const renderer = new THREE.WebGLRenderer({ canvas: document.querySelector('#bg'), antialias: true });
 
+const arcs = []; // Store arcs for later updates/removal
 // Country coordinates for placing markers
 let locationData = {};
-
-// Load location data from JSON file
-async function loadLocationData() {
-  const response = await fetch('./locations.json');
-  locationData = await response.json();
-  updateRSSFeed();
-}
-
-loadLocationData();
-
-const arcs = []; // Store arcs for later updates/removal
-
-// RSS feeds
-const rssFeeds = [
-  { name: "Google World News", url: 'https://rss.app/feeds/mKpvOxHGzgNpP5Ib.xml', enabled: true },
-  { name: "Google US News", url: 'https://rss.app/feeds/xsP4Lat7ZnqG58Vp.xml', enabled: true },
-  { name: "Google Science News", url: 'https://rss.app/feeds/dcFCoFLUF4HsslSJ.xml', enabled: true }
-];
-
-const addFeedBtn = document.getElementById('add-feed-btn');
-const customFeedInput = document.getElementById('custom-feed-url');
-
-addFeedBtn.addEventListener('click', () => {
-    const url = customFeedInput.value.trim();
-    
-    // Basic validation
-    if (url && url.startsWith('http')) {
-        const newFeed = {
-            name: "Custom Feed " + (rssFeeds.length + 1),
-            url: url,
-            enabled: true
-        };
-        
-        rssFeeds.push(newFeed);
-        customFeedInput.value = ''; // Clear input
-        
-        // Refresh the UI and the Globe
-        initFeedUI(); 
-        updateRSSFeed(); 
-    } else {
-        alert("Please enter a valid RSS URL starting with http");
-    }
-});
-
-// Get elements from html for feed management
-const feedManager = document.getElementById('feed-manager');
-const activeFeeds = document.getElementById('active-feeds');
-
-// Build the feed management UI
-function initFeedUI() {
-    feedManager.innerHTML = '';
-    activeFeeds.innerHTML = '';
-
-    rssFeeds.forEach((feed, index) => {
-        // Create Checkbox in Settings
-        const div = document.createElement('div');
-        div.innerHTML = `
-            <input type="checkbox" id="feed-${index}" ${feed.enabled ? 'checked' : ''}>
-            <label style="display:inline;" for="feed-${index}">${feed.name}</label>
-        `;
-        feedManager.appendChild(div);
-
-        // Add Listener
-        div.querySelector('input').addEventListener('change', (e) => {
-            feed.enabled = e.target.checked;
-            updateRSSFeed(); // Refresh markers and ticker
-            initFeedUI();    // Refresh labels
-        });
-
-        // Add Label to the "Active" list above footer
-        if (feed.enabled) {
-            const label = document.createElement('span');
-            label.textContent = `• ${feed.name}`;
-            label.style.background = "rgba(0, 255, 255, 0.2)";
-            label.style.padding = "2px 6px";
-            label.style.borderRadius = "4px";
-            activeFeeds.appendChild(label);
-        }
-    });
-}
-
-// RSS speed control
-let scrollX = window.innerWidth; // Start off-screen to the right
-const scrollSpeed = 1.5; // Constant pixels per frame
-const rssContent = document.getElementById('rss-content');
 
 // Camera and Renderer Setup
 renderer.setSize(window.innerWidth, window.innerHeight);
 camera.position.z = 3;
 
-// 1. The Loader
+// Texture Loader for Earth
 const loader = new THREE.TextureLoader();
 
-// 2. The Earth Mesh
+// The Earth Mesh
 const dayTexture = loader.load('./public/earth_color.jpg');
 const nightTexture = loader.load('./public/earth_night.jpg');
 const normalMap = loader.load('./public/earth_normal.jpg');
@@ -186,14 +103,123 @@ const earthMaterial = new THREE.ShaderMaterial({
 
 // Create the Earth mesh
 const earth = new THREE.Mesh(geometry, earthMaterial);
+
+// Ambient Light setting for soft overall illumination, so we can see the
+// night side of the Earth and the markers even when they are not directly lit by the sun
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
+
+// Directional Light representing the Sun, which will be dynamically positioned based on the time of day
+const sunLight = new THREE.DirectionalLight(0xffffff, 1.5);
+
+// Interaction (OrbitControls)
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.autoRotate = true; // Automatically rotate the scene
+
+// Get element for displaying time and date
+const timeElement = document.getElementById('time-display');
+
+const markers = []; // Store markers for raycasting (clicking)
+
+// Raycaster for detecting clicks and hovers on markers
+const raycaster = new THREE.Raycaster();
+raycaster.params.Points.threshold = 0.05; // Adjust the threshold for better click detection on small markers
+const mouse = new THREE.Vector2();
+const tooltip = document.getElementById('tooltip');
+
+// RSS feeds
+const rssFeeds = [
+  { name: "Google World News", url: 'https://rss.app/feeds/mKpvOxHGzgNpP5Ib.xml', enabled: true },
+  { name: "Google US News", url: 'https://rss.app/feeds/xsP4Lat7ZnqG58Vp.xml', enabled: true },
+  { name: "Google Science News", url: 'https://rss.app/feeds/dcFCoFLUF4HsslSJ.xml', enabled: true }
+];
+
+// Get elements from html for adding custom feeds
+const addFeedBtn = document.getElementById('add-feed-btn');
+const customFeedInput = document.getElementById('custom-feed-url');
+
+// Get elements from html for feed management
+const feedManager = document.getElementById('feed-manager');
+const activeFeeds = document.getElementById('active-feeds');
+
+// RSS speed control
+let scrollX = window.innerWidth; // Start off-screen to the right
+const scrollSpeed = 1.5; // Constant pixels per frame
+const rssContent = document.getElementById('rss-content');
+// ****************************************************************************
+// Toggle the settings menu
+settingsToggle.onclick = () => {
+  settingsMenu.style.display = settingsMenu.style.display === 'block' ? 'none' : 'block';
+}
+
+// Load location data from JSON file
+async function loadLocationData() {
+  const response = await fetch('./locations.json');
+  locationData = await response.json();
+  updateRSSFeed();
+}
+
+loadLocationData();
+
+addFeedBtn.addEventListener('click', () => {
+    const url = customFeedInput.value.trim();
+    
+    // Basic validation
+    if (url && url.startsWith('http')) {
+        const newFeed = {
+            name: "Custom Feed " + (rssFeeds.length + 1),
+            url: url,
+            enabled: true
+        };
+        
+        rssFeeds.push(newFeed);
+        customFeedInput.value = ''; // Clear input
+        
+        // Refresh the UI and the Globe
+        initFeedUI(); 
+        updateRSSFeed(); 
+    } else {
+        alert("Please enter a valid RSS URL starting with http");
+    }
+});
+
+// Build the feed management UI
+function initFeedUI() {
+    feedManager.innerHTML = '';
+    activeFeeds.innerHTML = '';
+
+    rssFeeds.forEach((feed, index) => {
+        // Create Checkbox in Settings
+        const div = document.createElement('div');
+        div.innerHTML = `
+            <input type="checkbox" id="feed-${index}" ${feed.enabled ? 'checked' : ''}>
+            <label style="display:inline;" for="feed-${index}">${feed.name}</label>
+        `;
+        feedManager.appendChild(div);
+
+        // Add Listener
+        div.querySelector('input').addEventListener('change', (e) => {
+            feed.enabled = e.target.checked;
+            updateRSSFeed(); // Refresh markers and ticker
+            initFeedUI();    // Refresh labels
+        });
+
+        // Add Label to the "Active" list above footer
+        if (feed.enabled) {
+            const label = document.createElement('span');
+            label.textContent = `• ${feed.name}`;
+            label.style.background = "rgba(0, 255, 255, 0.2)";
+            label.style.padding = "2px 6px";
+            label.style.borderRadius = "4px";
+            activeFeeds.appendChild(label);
+        }
+    });
+}
+
 // Add the Earth to the scene
 scene.add(earth);
 
-// 3. Add Lights (Crucial for Earth)
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.2); // Soft overall light
+// Add Lights to the scene
 scene.add(ambientLight);
-
-const sunLight = new THREE.DirectionalLight(0xffffff, 1.5);
 
 // Function to calculate the sun's position based on the current date and time
 function getSunPosition() {
@@ -234,12 +260,7 @@ function updateSunPosition(sunLight) {
 }
 scene.add(sunLight);
 
-// 4. Interaction (OrbitControls)
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.autoRotate = true; // Automatically rotate the scene
-
-// 5. Time Display
-const timeElement = document.getElementById('time-display');
+// Time Display
 function updateClock() {
     const offsetHours = parseInt(utcOffsetInput.value);
     const now = new Date();
@@ -267,7 +288,7 @@ function updateClock() {
     timeElement.textContent = `${hours}:${minutes}:${seconds} ${dateString} ${xHours}`;
 }
 
-// 6. Convert Lat/Lon to 3D Vector
+// Convert Lat/Lon to 3D Vector
 function latLonToVector3(lat, lon, radius) {
     const phi = (90 - lat) * (Math.PI / 180);
     const theta = (lon + 180) * (Math.PI / 180);
@@ -279,9 +300,7 @@ function latLonToVector3(lat, lon, radius) {
     return new THREE.Vector3(x, y, z);
 }
 
-const markers = []; // Store markers for raycasting (clicking)
-
-// 7. Add a marker for a news story
+// Add a marker for a news story
 function addMarker(lat, lon, newsTitle, newsUrl) {
     // Create a small sphere geometry for the marker
     const markerGeo = new THREE.SphereGeometry(0.02, 16, 16);
@@ -304,12 +323,6 @@ function addMarker(lat, lon, newsTitle, newsUrl) {
     earth.add(marker); // Add to earth so it rotates with it
     markers.push(marker); // Store the marker for raycasting
 }
-
-// 8. Raycaster for detecting clicks and hovers on markers
-const raycaster = new THREE.Raycaster();
-raycaster.params.Points.threshold = 0.05; // Adjust the threshold for better click detection on small markers
-const mouse = new THREE.Vector2();
-const tooltip = document.getElementById('tooltip');
 
 // Handle mouse movement for hover and click interactions
 function rayCaster(event) {
