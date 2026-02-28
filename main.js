@@ -6,21 +6,25 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-// Global Variables ***********************************************************
+// Global Variables ***********************************************************************************************************************
 // User Controlled Settings
 const rotationSlider = document.getElementById('rotation-slider');
 const utcOffsetInput = document.getElementById('utc-offset');
 const settingsToggle = document.getElementById('settings-toggle');
 const settingsMenu = document.getElementById('settings-menu');
 
+// Get element for displaying time and date
+const timeElement = document.getElementById('time-display');
+
 // Constants for Earth rendering
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 const renderer = new THREE.WebGLRenderer({ canvas: document.querySelector('#bg'), antialias: true });
 
+// Arrays for storing markers, arcs, and location data
+const markers = []; // Store markers for raycasting
 const arcs = []; // Store arcs for later updates/removal
-// Country coordinates for placing markers
-let locationData = {};
+let locationData = {}; // Country coordinates for placing markers
 
 // Camera and Renderer Setup
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -115,11 +119,6 @@ const sunLight = new THREE.DirectionalLight(0xffffff, 1.5);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.autoRotate = true; // Automatically rotate the scene
 
-// Get element for displaying time and date
-const timeElement = document.getElementById('time-display');
-
-const markers = []; // Store markers for raycasting (clicking)
-
 // Raycaster for detecting clicks and hovers on markers
 const raycaster = new THREE.Raycaster();
 raycaster.params.Points.threshold = 0.05; // Adjust the threshold for better click detection on small markers
@@ -145,10 +144,39 @@ const activeFeeds = document.getElementById('active-feeds');
 let scrollX = window.innerWidth; // Start off-screen to the right
 const scrollSpeed = 1.5; // Constant pixels per frame
 const rssContent = document.getElementById('rss-content');
-// ****************************************************************************
-// Toggle the settings menu
-settingsToggle.onclick = () => {
-  settingsMenu.style.display = settingsMenu.style.display === 'block' ? 'none' : 'block';
+// ****************************************************************************************************************************************
+// Scene Setup ****************************************************************************************************************************
+scene.add(earth); // Add the Earth mesh to the scene so it will be rendered
+scene.add(ambientLight); // Add ambient light to the scene for basic illumination
+scene.add(sunLight); // Add the directional light representing the sun to the scene, which is dynamically positioned in the animation loop
+// ****************************************************************************************************************************************
+// Functions ******************************************************************************************************************************
+// Time Display
+function updateClock() {
+    const offsetHours = parseInt(utcOffsetInput.value);
+    const now = new Date();
+    now.setUTCHours(now.getUTCHours() + offsetHours); // Apply user-defined UTC offset
+
+    // Format the date
+    const dateString = now.getUTCDate() + " " + now.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' }) + " " + now.getUTCFullYear();
+    
+    // Format the UTC 24-hour time
+    const hours = String(now.getUTCHours()).padStart(2, '0');
+    const minutes = String(now.getUTCMinutes()).padStart(2, '0');
+    const seconds = String(now.getUTCSeconds()).padStart(2, '0');
+
+    // Add ACP 121 for UTC offset
+    let xHours = "";
+    const eastLetters = ['A','B','C','D','E','F','G','H','I','K','L','M'];
+    const westLetters = ['Z','N','O','P','Q','R','S','T','U','V','W','X','Y'];
+    if (offsetHours > 0) {
+      xHours += `-${offsetHours}${eastLetters[offsetHours - 1]}`;
+    } else {
+      let absOffset = Math.abs(offsetHours);
+      xHours += `+${absOffset}${westLetters[absOffset]}`;
+    }
+    
+    timeElement.textContent = `${hours}:${minutes}:${seconds} ${dateString} ${xHours}`;
 }
 
 // Load location data from JSON file
@@ -157,30 +185,6 @@ async function loadLocationData() {
   locationData = await response.json();
   updateRSSFeed();
 }
-
-loadLocationData();
-
-addFeedBtn.addEventListener('click', () => {
-    const url = customFeedInput.value.trim();
-    
-    // Basic validation
-    if (url && url.startsWith('http')) {
-        const newFeed = {
-            name: "Custom Feed " + (rssFeeds.length + 1),
-            url: url,
-            enabled: true
-        };
-        
-        rssFeeds.push(newFeed);
-        customFeedInput.value = ''; // Clear input
-        
-        // Refresh the UI and the Globe
-        initFeedUI(); 
-        updateRSSFeed(); 
-    } else {
-        alert("Please enter a valid RSS URL starting with http");
-    }
-});
 
 // Build the feed management UI
 function initFeedUI() {
@@ -214,12 +218,6 @@ function initFeedUI() {
         }
     });
 }
-
-// Add the Earth to the scene
-scene.add(earth);
-
-// Add Lights to the scene
-scene.add(ambientLight);
 
 // Function to calculate the sun's position based on the current date and time
 function getSunPosition() {
@@ -257,35 +255,6 @@ function updateSunPosition(sunLight) {
     sunLight.position.x = -distance * Math.sin(phi) * Math.cos(theta);
     sunLight.position.y = distance * Math.cos(phi);
     sunLight.position.z = distance * Math.sin(phi) * Math.sin(theta);
-}
-scene.add(sunLight);
-
-// Time Display
-function updateClock() {
-    const offsetHours = parseInt(utcOffsetInput.value);
-    const now = new Date();
-    now.setUTCHours(now.getUTCHours() + offsetHours); // Apply user-defined UTC offset
-
-    // Format the date
-    const dateString = now.getUTCDate() + " " + now.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' }) + " " + now.getUTCFullYear();
-    
-    // Format the UTC 24-hour time
-    const hours = String(now.getUTCHours()).padStart(2, '0');
-    const minutes = String(now.getUTCMinutes()).padStart(2, '0');
-    const seconds = String(now.getUTCSeconds()).padStart(2, '0');
-
-    // Add ACP 121 for UTC offset
-    let xHours = "";
-    const eastLetters = ['A','B','C','D','E','F','G','H','I','K','L','M'];
-    const westLetters = ['Z','N','O','P','Q','R','S','T','U','V','W','X','Y'];
-    if (offsetHours > 0) {
-      xHours += `-${offsetHours}${eastLetters[offsetHours - 1]}`;
-    } else {
-      let absOffset = Math.abs(offsetHours);
-      xHours += `+${absOffset}${westLetters[absOffset]}`;
-    }
-    
-    timeElement.textContent = `${hours}:${minutes}:${seconds} ${dateString} ${xHours}`;
 }
 
 // Convert Lat/Lon to 3D Vector
@@ -370,22 +339,7 @@ function rayCaster(event) {
     }
 }
 
-// Listen for mouse clicks to handle tooltip interactions
-window.addEventListener('mousedown', (event) => {
-  // If the user clicks anywhere outside the tooltip, hide it immediately
-  if (!event.target.closest('#tooltip')) {
-    tooltip.style.display = 'none';
-    document.body.style.cursor = 'default';
-    controls.autoRotate = true;
-  }
-});
-
-// Listen for mouse movement to handle hover interactions
-window.addEventListener('mousemove', (event) => {
-  rayCaster(event);
-});
-
-// 9. Country Arcs
+// Country Arcs
 function createArc(startVec, endVec) {
     // 1. Calculate the midpoint
     const midVec = new THREE.Vector3().addVectors(startVec, endVec).divideScalar(2);
@@ -417,7 +371,7 @@ function createArc(startVec, endVec) {
     return arcLine;
 }
 
-// 10. Clear Globe Markers and Arcs
+// Clear Globe Markers and Arcs
 function clearMarkers() {
     markers.forEach(marker => {
         earth.remove(marker); // Remove from the 3D scene
@@ -434,7 +388,7 @@ function clearMarkers() {
     arcs.length = 0;
 }
 
-// 11. Fetch and Update RSS Feed
+// Fetch and Update RSS Feed
 async function updateRSSFeed() {
     clearMarkers(); // Clear existing markers before adding new ones
     let allItems = [];
@@ -513,10 +467,7 @@ async function updateRSSFeed() {
     }
 }
 
-// Refresh the news every 10 minutes
-setInterval(updateRSSFeed, 600000);
-
-// 12. Marquee Scrolling
+// Marquee Scrolling
 function updateMarquee() {
     scrollX -= scrollSpeed;
 
@@ -529,14 +480,7 @@ function updateMarquee() {
     rssContent.style.transform = `translateX(${scrollX}px)`;
 }
 
-// 13. Handle Window Resize
-window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-});
-
-// 14. Animation Loop
+// Animation function to render the scene and update elements every frame
 function animate() {
   requestAnimationFrame(animate);
   updateSunPosition(sunLight); // Update sun position every frame
@@ -549,7 +493,57 @@ function animate() {
   controls.update();
   renderer.render(scene, camera);
 }
-
-// 15. Initialized functions
+// ****************************************************************************************************************************************
+// Event Listeners ************************************************************************************************************************
+// Toggle the settings menu
+settingsToggle.onclick = () => {
+  settingsMenu.style.display = settingsMenu.style.display === 'block' ? 'none' : 'block';
+}
+// Listen for adding custom RSS feeds through the settings menu
+addFeedBtn.addEventListener('click', () => {
+    const url = customFeedInput.value.trim();
+    
+    // Basic validation
+    if (url && url.startsWith('http')) {
+        const newFeed = {
+            name: "Custom Feed " + (rssFeeds.length + 1),
+            url: url,
+            enabled: true
+        };
+        
+        rssFeeds.push(newFeed);
+        customFeedInput.value = ''; // Clear input
+        
+        // Refresh the UI and the Globe
+        initFeedUI(); 
+        updateRSSFeed(); 
+    } else {
+        alert("Please enter a valid RSS URL starting with http");
+    }
+})
+// Listen for mouse clicks to handle tooltip interactions
+window.addEventListener('mousedown', (event) => {
+  // If the user clicks anywhere outside the tooltip, hide it immediately
+  if (!event.target.closest('#tooltip')) {
+    tooltip.style.display = 'none';
+    document.body.style.cursor = 'default';
+    controls.autoRotate = true;
+  }
+});
+// Listen for mouse movement to handle hover interactions
+window.addEventListener('mousemove', (event) => {
+  rayCaster(event);
+});
+// Handle Window Resize
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+// Initialize functions *******************************************************************************************************************
+loadLocationData(); // Load location data and then fetch the initial RSS feed
+setInterval(updateRSSFeed, 600000); // Refresh news every 10 minutes
 initFeedUI(); // Start the feed management UI
-animate(); // Start the animation loop
+animate(); // Start the animation function that renders the scene and updates elements every frame
+// ****************************************************************************************************************************************
+// Developed in 2026 by Spencer Kotys
